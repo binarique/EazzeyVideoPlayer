@@ -20,8 +20,8 @@ class EazzeyPlayer extends StatefulWidget {
 class _EazzeyPlayerState extends State<EazzeyPlayer> {
   late Future<MediaMeta> futureMetaData;
   late VlcPlayerController _videoPlayerController;
-  double seekValue = 0;
-  double bufferValue = 0;
+  Duration seekDuration = Duration.zero;
+  Duration bufferDuration = Duration.zero;
   double aspectRatio = 16 / 11;
   bool isPlayerPlaying = false;
   late StreamSubscription playerSubscription;
@@ -36,7 +36,7 @@ class _EazzeyPlayerState extends State<EazzeyPlayer> {
         .asBroadcastStream()
         .listen((message) {
       if (message["type"] == "PLAYER_STATE_POSITION") {
-        uploadPlayerState(message["position"]);
+        // uploadPlayerState(message["position"]);
         //
       }
     });
@@ -45,9 +45,7 @@ class _EazzeyPlayerState extends State<EazzeyPlayer> {
 
   void initializePlayer() {
     _videoPlayerController = VlcPlayerController.network(
-      "https://storage.googleapis.com/iwtms/moments/1.mp4",
-
-      // 'https://media.w3.org/2010/05/sintel/trailer.mp4',
+      'https://media.w3.org/2010/05/sintel/trailer.mp4',
       hwAcc: HwAcc.auto,
       autoInitialize: false,
       autoPlay: true,
@@ -56,18 +54,18 @@ class _EazzeyPlayerState extends State<EazzeyPlayer> {
     futureMetaData = initPlayer();
   }
 
-  Future<void> uploadPlayerState(int position) async {
+  Future<void> updatePlayerDuration(Duration position) async {
     if (mounted) {
       setState(() {
-        seekValue = position.toDouble();
+        seekDuration = position;
       });
     }
-    bool isPlaying = await _videoPlayerController.isPlaying() ?? false;
-    if (mounted) {
-      setState(() {
-        isPlayerPlaying = isPlaying;
-      });
-    }
+    // bool isPlaying = await _videoPlayerController.isPlaying() ?? false;
+    // if (mounted) {
+    //   setState(() {
+    //     isPlayerPlaying = isPlaying;
+    //   });
+    // }
   }
 
   Future<MediaMeta> initPlayer() async {
@@ -86,6 +84,13 @@ class _EazzeyPlayerState extends State<EazzeyPlayer> {
         });
       }
     });
+    _videoPlayerController.addListener(
+      () {
+        _videoPlayerController
+            .getPosition()
+            .then((value) => updatePlayerDuration(value));
+      },
+    );
     return initMediaMeta();
   }
 
@@ -112,8 +117,8 @@ class _EazzeyPlayerState extends State<EazzeyPlayer> {
   }
 
   Future<void> onPlayPause(VlcPlayerController videoPlayerController,
-      int currentDuration, int totalDuration) async {
-    if (currentDuration == totalDuration) {
+      Duration currentDuration, Duration totalDuration) async {
+    if (currentDuration.inSeconds == totalDuration.inSeconds) {
       initializePlayer();
     } else {
       bool? isPlaying = await _videoPlayerController.isPlaying();
@@ -329,10 +334,8 @@ class _EazzeyPlayerState extends State<EazzeyPlayer> {
                                       IconButton(
                                         color: Colors.black.withOpacity(0.5),
                                         onPressed: () {
-                                          onPlayPause(
-                                              _videoPlayerController,
-                                              seekValue.toInt(),
-                                              meta.duration.inSeconds);
+                                          onPlayPause(_videoPlayerController,
+                                              seekDuration, meta.duration);
                                         },
                                         icon: Icon(
                                           isPlayerPlaying
@@ -379,8 +382,7 @@ class _EazzeyPlayerState extends State<EazzeyPlayer> {
                                                 Row(
                                                   children: [
                                                     Text(
-                                                      seekValue
-                                                          .toStringAsFixed(1),
+                                                      seekDuration.toString(),
                                                       style: const TextStyle(
                                                         color: Colors.white,
                                                         fontSize: 11,
@@ -389,7 +391,7 @@ class _EazzeyPlayerState extends State<EazzeyPlayer> {
                                                       ),
                                                     ),
                                                     Text(
-                                                      " /${meta.duration.inSeconds.toStringAsFixed(1)}",
+                                                      " /${meta.duration.toString()}",
                                                       style: const TextStyle(
                                                         color: Colors.white60,
                                                         fontSize: 11,
@@ -417,10 +419,8 @@ class _EazzeyPlayerState extends State<EazzeyPlayer> {
                                             padding: EdgeInsets.symmetric(
                                                 horizontal: generalPadding),
                                             child: ProgressBar(
-                                              progress: Duration(
-                                                  seconds: seekValue.toInt()),
-                                              buffered: Duration(
-                                                  seconds: bufferValue.toInt()),
+                                              progress: seekDuration,
+                                              buffered: bufferDuration,
                                               total: meta.duration,
                                               barHeight: 3,
                                               progressBarColor:
@@ -440,46 +440,9 @@ class _EazzeyPlayerState extends State<EazzeyPlayer> {
                                                 await onSeek(
                                                     _videoPlayerController,
                                                     duration);
-                                                print(
-                                                    'User selected a new time: $duration');
                                               },
                                             ),
                                           ),
-                                          // SliderTheme(
-                                          //   data: const SliderThemeData(
-                                          //     trackHeight: 3,
-                                          //   ),
-                                          //   child: Slider(
-                                          //     thumbColor: Colors.white,
-                                          //     secondaryTrackValue:
-                                          //         bufferValue, // buffer
-                                          //     secondaryActiveColor:
-                                          //         seekBarSecondaryActiveColor,
-                                          //     inactiveColor: seekBarInactiveColor,
-                                          //     value: seekValue,
-                                          //     activeColor: seekBarActiveColor,
-                                          //     max: meta.duration.inSeconds
-                                          //         .toDouble(),
-                                          //     onChangeStart: (value) {
-                                          //       _videoPlayerController.pause();
-                                          //       print("Change started: $value");
-                                          //       onSeek(_videoPlayerController,
-                                          //           value);
-                                          //     },
-                                          //     onChangeEnd: (value) async {
-                                          //       print("Change Ended: $value");
-                                          //       await onSeek(
-                                          //           _videoPlayerController,
-                                          //           value);
-                                          //       _videoPlayerController.play();
-                                          //     },
-                                          //     onChanged: (double value) {
-                                          //       setState(() {
-                                          //         seekValue = value;
-                                          //       });
-                                          //     },
-                                          //   ),
-                                          // )
                                         ],
                                       ),
                                     ),
